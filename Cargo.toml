@@ -1,0 +1,17 @@
+[package]
+name = "swc-import"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+serde = "1"
+swc_plugin = "*"
+swc_common = "0.17.9"
+
+[dev-dependencies]
+swc_ecma_parser = "0.91.11"
+swc_ecma_transforms_testing = "0.64.0"
+swc_ecma_visit = "0.54.0"

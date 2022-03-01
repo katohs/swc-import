@@ -1,0 +1,7 @@
+{
+  "name": "swc-import",
+  "dependencies": {
+    "@swc/cli": "^0.1.55",
+    "@swc/core": "^1.2.145"
+  }
+}
