@@ -2,64 +2,58 @@ use swc_plugin::{ast::*, plugin_transform};
 
 pub struct TransformVisitor;
 
-
-
-
 impl TransformVisitor {
     pub fn new() -> Self {
         TransformVisitor
     }
 
     fn visit_mut_module_items_to_transform_import(&mut self, module_body: &mut Vec<ModuleItem>) {
-        let mut imports = Vec::new();
+        let mut imports = vec![];
 
         for (index, item) in module_body.iter_mut().enumerate() {
-            let replacement = match item {
+            match item {
                 ModuleItem::ModuleDecl(decl) => match decl {
                     ModuleDecl::Import(import) => {
-                        let spec = import.specifiers.iter_mut().next().unwrap();
-
-                        let spec = match spec {
-                            ImportSpecifier::Named(spec) => spec,
-                            ImportSpecifier::Default(_spec) => continue,
-                            ImportSpecifier::Namespace(_spec) => continue,
-                        };
-                        let replacement = ImportDecl {
-                            span: swc_plugin::syntax_pos::DUMMY_SP,
-                            specifiers: vec![ImportSpecifier::Default(ImportDefaultSpecifier {
+                        let mut replacement = vec![];
+                        for spec in import.specifiers.iter_mut() {
+                            let spec = match spec {
+                                ImportSpecifier::Named(spec) => spec,
+                                ImportSpecifier::Default(_spec) => continue,
+                                ImportSpecifier::Namespace(_spec) => continue,
+                            };
+                            replacement.push(ImportDecl {
                                 span: swc_plugin::syntax_pos::DUMMY_SP,
-                                local: spec.local.clone(),
-                            })],
-                            src: Str::from(format!("@mui/material/{}", spec.local.as_ref())),
-                            type_only: import.type_only,
-                            asserts: import.asserts.clone(),
-                        };
+                                specifiers: vec![ImportSpecifier::Default(
+                                    ImportDefaultSpecifier {
+                                        span: swc_plugin::syntax_pos::DUMMY_SP,
+                                        local: spec.local.clone(),
+                                    },
+                                )],
+                                src: Str::from(format!("@mui/material/{}", spec.local.as_ref())),
+                                type_only: import.type_only,
+                                asserts: import.asserts.clone(),
+                            });
+                        }
 
-                        Some(replacement)
+                        imports.push((index, replacement));
                     }
-                    _ => None,
-                }
-                _ => None,
+                    _ => {}
+                },
+                _ => {}
             };
-            
-            if let Some(replacement) = replacement {
-                imports.push((index, replacement));
-            }
         }
-        
+
         for (index, import) in imports {
             module_body.remove(index);
 
-            module_body.insert(0, ModuleItem::ModuleDecl(ModuleDecl::Import(import)));
+            for (j, item) in import.into_iter().enumerate() {
+                module_body.insert(index + j, ModuleItem::ModuleDecl(ModuleDecl::Import(item)));
+            }
         }
-    
     }
 }
 
 impl VisitMut for TransformVisitor {
-
-  
-
     fn visit_mut_module(&mut self, module: &mut Module) {
         self.visit_mut_module_items_to_transform_import(&mut module.body);
         module.visit_mut_children_with(self);
@@ -103,7 +97,6 @@ mod transform_visitor_tests {
         as_folder(TransformVisitor {})
     }
 
-
     test!(
         ::swc_ecma_parser::Syntax::Es(::swc_ecma_parser::EsConfig {
             jsx: true,
@@ -112,10 +105,11 @@ mod transform_visitor_tests {
         |_| transform_visitor(),
         use_proxy_macros,
         r#"
-        import { Button } from '@mui/material'
+        import { Button, MTag } from '@mui/material'
         "#,
         r#"
         import Button from '@mui/material/Button';
+        import MTag from '@mui/material/MTag';
         "#
     );
 }
